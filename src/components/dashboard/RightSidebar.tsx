@@ -11,6 +11,7 @@ interface RightSidebarProps {
   zones: Zone[];
   corridors: EvacCorridor[];
   onLocateZone: (lat: number, lng: number) => void;
+  analysisMode?: "live" | "fallback" | null;
 }
 
 function getRankColor(rank: number) {
@@ -30,13 +31,26 @@ function getStatusBadge(status: string) {
 
 const RightSidebar = ({
   hasResults, isAnalyzing, totalZones, populationExposed, criticalMinutes,
-  zones, corridors, onLocateZone,
+  zones, corridors, onLocateZone, analysisMode,
 }: RightSidebarProps) => {
 
   return (
     <aside className="w-full lg:w-[320px] bg-card border-l border-border flex flex-col shrink-0 overflow-y-auto scrollbar-thin">
       <div className="p-4 space-y-4">
-        <h2 className="font-heading font-semibold text-base text-foreground">Vulnerability Analysis</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-heading font-semibold text-base text-foreground">Vulnerability Analysis</h2>
+          {analysisMode && (
+            <span
+              className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
+                analysisMode === "live"
+                  ? "bg-success/20 text-success border-success/30"
+                  : "bg-accent/20 text-accent border-accent/30"
+              }`}
+            >
+              {analysisMode === "live" ? "LIVE DATA" : "DEMO DATA"}
+            </span>
+          )}
+        </div>
 
         {!hasResults && !isAnalyzing && (
           <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">

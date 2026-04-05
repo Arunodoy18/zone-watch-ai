@@ -4,7 +4,16 @@ import LeftSidebar from "@/components/dashboard/LeftSidebar";
 import MapPanel from "@/components/dashboard/MapPanel";
 import RightSidebar from "@/components/dashboard/RightSidebar";
 import OfflineIndicator from "@/components/dashboard/OfflineIndicator";
-import { sampleAnalysis } from "@/data/sampleData";
+import { sampleAnalysis, type AnalysisResponse } from "@/data/sampleData";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const ANALYZE_TIMEOUT_MS = 15000;
+const ANALYZE_MAX_ATTEMPTS = 2;
+const ANALYZE_RETRY_DELAY_MS = 1000;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type AnalysisMode = "live" | "fallback" | null;
 
 const Index = () => {
   const [selectedType, setSelectedType] = useState("landslide");
@@ -18,17 +27,77 @@ const Index = () => {
   const [clickToSet, setClickToSet] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasResults, setHasResults] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisResponse>(sampleAnalysis);
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>(null);
+  const [statusBanner, setStatusBanner] = useState<string | null>(null);
   const [locateTarget, setLocateTarget] = useState<{ lat: number; lng: number } | null>(null);
 
-  const runAnalysis = useCallback(() => {
+  const runAnalysis = useCallback(async () => {
     if (isAnalyzing) return;
+
     setIsAnalyzing(true);
     setHasResults(false);
-    setTimeout(() => {
-      setIsAnalyzing(false);
+    setStatusBanner("Connecting to backend analysis service...");
+    setAnalysisMode(null);
+
+    try {
+      let result: AnalysisResponse | null = null;
+
+      for (let attempt = 1; attempt <= ANALYZE_MAX_ATTEMPTS; attempt += 1) {
+        const controller = new AbortController();
+        const timeoutHandle = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/analyze`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              lat,
+              lng,
+              radius_km: radius,
+              disaster_type: selectedType,
+            }),
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Analysis request failed with status ${response.status}`);
+          }
+
+          result = (await response.json()) as AnalysisResponse;
+          break;
+        } catch (error) {
+          if (attempt < ANALYZE_MAX_ATTEMPTS) {
+            setStatusBanner("Backend is waking up. Retrying analysis...");
+            await delay(ANALYZE_RETRY_DELAY_MS);
+            continue;
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
+      }
+
+      if (!result) {
+        throw new Error("Analysis returned no data");
+      }
+
+      setAnalysis(result);
       setHasResults(true);
-    }, 3000);
-  }, [isAnalyzing]);
+      setAnalysisMode("live");
+      setStatusBanner("Live backend analysis loaded.");
+    } catch (error) {
+      console.error("Failed to fetch analysis from backend:", error);
+      setAnalysis(sampleAnalysis);
+      setHasResults(true);
+      setAnalysisMode("fallback");
+      setStatusBanner("Backend unavailable. Showing offline sample data for instant demo flow.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [isAnalyzing, lat, lng, radius, selectedType]);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     setLat(parseFloat(lat.toFixed(4)));
@@ -43,6 +112,15 @@ const Index = () => {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <Navbar onRunAnalysis={runAnalysis} isAnalyzing={isAnalyzing} />
+      {statusBanner && (
+        <div
+          className={`px-4 py-2 text-xs border-b border-border ${
+            analysisMode === "fallback" ? "bg-accent/20 text-accent" : "bg-secondary text-foreground"
+          }`}
+        >
+          {statusBanner}
+        </div>
+      )}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
         <LeftSidebar
           selectedType={selectedType}
@@ -71,7 +149,7 @@ const Index = () => {
           lng={lng}
           radius={radius}
           showRoads={showRoads}
-          zones={sampleAnalysis.zones}
+          zones={analysis.zones}
           hasResults={hasResults}
           isAnalyzing={isAnalyzing}
           onMapClick={handleMapClick}
@@ -81,12 +159,13 @@ const Index = () => {
         <RightSidebar
           hasResults={hasResults}
           isAnalyzing={isAnalyzing}
-          totalZones={sampleAnalysis.total_zones_affected}
-          populationExposed={sampleAnalysis.population_exposed}
-          criticalMinutes={sampleAnalysis.critical_window_minutes}
-          zones={sampleAnalysis.zones}
-          corridors={sampleAnalysis.evacuation_corridors}
+          totalZones={analysis.total_zones_affected}
+          populationExposed={analysis.population_exposed}
+          criticalMinutes={analysis.critical_window_minutes}
+          zones={analysis.zones}
+          corridors={analysis.evacuation_corridors}
           onLocateZone={handleLocateZone}
+          analysisMode={analysisMode}
         />
       </div>
       <OfflineIndicator />

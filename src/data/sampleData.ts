@@ -1,4 +1,32 @@
-export const sampleAnalysis = {
+export interface Zone {
+  rank: number;
+  name: string;
+  population: number;
+  isolation_minutes: number;
+  risk_score: number;
+  alternate_routes: number;
+  lat: number;
+  lng: number;
+}
+
+export interface EvacCorridor {
+  name: string;
+  status: "open" | "at_risk" | "blocked";
+  capacity: string;
+}
+
+export interface AnalysisResponse {
+  analysis_id: string;
+  disaster_type: string;
+  epicenter: { lat: number; lng: number };
+  total_zones_affected: number;
+  population_exposed: number;
+  critical_window_minutes: number;
+  zones: Zone[];
+  evacuation_corridors: EvacCorridor[];
+}
+
+export const sampleAnalysis: AnalysisResponse = {
   analysis_id: "SK-2024-001",
   disaster_type: "landslide",
   epicenter: { lat: 27.6244, lng: 88.6124 },
@@ -16,9 +44,9 @@ export const sampleAnalysis = {
     { rank: 8, name: "Dikchu Village", population: 540, isolation_minutes: 130, risk_score: 44, alternate_routes: 3, lat: 27.3900, lng: 88.6100 },
   ],
   evacuation_corridors: [
-    { name: "NH10 — Rangpo to Gangtok", status: "open" as const, capacity: "High" },
-    { name: "Mangan — Singhik Route", status: "at_risk" as const, capacity: "Medium" },
-    { name: "Chungthang — Lachen Bypass", status: "blocked" as const, capacity: "None" },
+    { name: "NH10 — Rangpo to Gangtok", status: "open", capacity: "High" },
+    { name: "Mangan — Singhik Route", status: "at_risk", capacity: "Medium" },
+    { name: "Chungthang — Lachen Bypass", status: "blocked", capacity: "None" },
   ],
 };
 
@@ -32,5 +60,3 @@ export const sampleRoadNetwork = {
   ],
 };
 
-export type Zone = typeof sampleAnalysis.zones[number];
-export type EvacCorridor = typeof sampleAnalysis.evacuation_corridors[number];
