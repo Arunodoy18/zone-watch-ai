@@ -7,9 +7,9 @@ import OfflineIndicator from "@/components/dashboard/OfflineIndicator";
 import { sampleAnalysis, type AnalysisResponse } from "@/data/sampleData";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-const ANALYZE_TIMEOUT_MS = 15000;
-const ANALYZE_MAX_ATTEMPTS = 2;
-const ANALYZE_RETRY_DELAY_MS = 1000;
+const ANALYZE_TIMEOUT_MS = 60000;
+const ANALYZE_MAX_ATTEMPTS = 3;
+const ANALYZE_RETRY_DELAY_MS = 3000;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -37,7 +37,7 @@ const Index = () => {
 
     setIsAnalyzing(true);
     setHasResults(false);
-    setStatusBanner("Connecting to backend analysis service...");
+    setStatusBanner("Connecting to backend analysis service. Initial wake-up can take up to 60-90 seconds on free tier.");
     setAnalysisMode(null);
 
     try {
@@ -70,7 +70,7 @@ const Index = () => {
           break;
         } catch (error) {
           if (attempt < ANALYZE_MAX_ATTEMPTS) {
-            setStatusBanner("Backend is waking up. Retrying analysis...");
+            setStatusBanner("Backend is waking up. Retrying analysis in a few seconds...");
             await delay(ANALYZE_RETRY_DELAY_MS);
             continue;
           }
