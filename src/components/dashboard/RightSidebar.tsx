@@ -62,7 +62,7 @@ const RightSidebar = ({
             <div className="grid grid-cols-3 gap-2">
               <MetricCard label="Zones at Risk" value={totalZones.toString()} color="text-destructive" />
               <MetricCard label="Pop. Exposed" value={populationExposed.toLocaleString()} color="text-accent" />
-              <MetricCard label="Critical Window" value={`${hours}h ${mins}m`} color="text-destructive" />
+              <CountdownCard minutes={criticalMinutes} />
             </div>
 
             {/* Zone list */}
