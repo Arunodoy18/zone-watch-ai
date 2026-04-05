@@ -1,4 +1,5 @@
-import { Hexagon, Users, Clock, MapPin, Download, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Hexagon, Users, Clock, MapPin, Download } from "lucide-react";
 import { type Zone, type EvacCorridor } from "@/data/sampleData";
 
 interface RightSidebarProps {
@@ -31,8 +32,6 @@ const RightSidebar = ({
   hasResults, isAnalyzing, totalZones, populationExposed, criticalMinutes,
   zones, corridors, onLocateZone,
 }: RightSidebarProps) => {
-  const hours = Math.floor(criticalMinutes / 60);
-  const mins = criticalMinutes % 60;
 
   return (
     <aside className="w-full lg:w-[320px] bg-card border-l border-border flex flex-col shrink-0 overflow-y-auto scrollbar-thin">
@@ -61,7 +60,7 @@ const RightSidebar = ({
             <div className="grid grid-cols-3 gap-2">
               <MetricCard label="Zones at Risk" value={totalZones.toString()} color="text-destructive" />
               <MetricCard label="Pop. Exposed" value={populationExposed.toLocaleString()} color="text-accent" />
-              <MetricCard label="Critical Window" value={`${hours}h ${mins}m`} color="text-destructive" />
+              <CountdownCard minutes={criticalMinutes} />
             </div>
 
             {/* Zone list */}
@@ -148,5 +147,38 @@ const MetricCard = ({ label, value, color }: { label: string; value: string; col
     <p className="text-[9px] text-muted-foreground mt-0.5">{label}</p>
   </div>
 );
+const CountdownCard = ({ minutes }: { minutes: number }) => {
+  const [remaining, setRemaining] = useState(minutes * 60);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    setRemaining(minutes * 60);
+    startRef.current = Date.now();
+  }, [minutes]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startRef.current) / 1000);
+      const next = Math.max(0, minutes * 60 - elapsed);
+      setRemaining(next);
+      if (next <= 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [minutes]);
+
+  const h = Math.floor(remaining / 3600);
+  const m = Math.floor((remaining % 3600) / 60);
+  const s = remaining % 60;
+  const urgent = remaining < 600;
+
+  return (
+    <div className={`bg-secondary rounded-lg p-2.5 text-center border transition-colors duration-300 ${urgent ? "border-destructive/50" : "border-border"}`}>
+      <p className={`text-lg font-heading font-bold tabular-nums text-destructive ${urgent ? "animate-pulse" : ""}`}>
+        {h}h {String(m).padStart(2, "0")}m {String(s).padStart(2, "0")}s
+      </p>
+      <p className="text-[9px] text-muted-foreground mt-0.5">Critical Window</p>
+    </div>
+  );
+};
 
 export default RightSidebar;
