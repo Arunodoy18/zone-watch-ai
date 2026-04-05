@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Hexagon, Users, Clock, MapPin, Download, AlertTriangle } from "lucide-react";
 import { type Zone, type EvacCorridor } from "@/data/sampleData";
 
